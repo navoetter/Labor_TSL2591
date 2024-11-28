@@ -7,6 +7,8 @@ import time
 import board
 import adafruit_tsl2591
 
+OUTPUT_FILE = "out.csv"
+
 # Create sensor object, communicating over the board's default I2C bus
 i2c = board.I2C()  # uses board.SCL and board.SDA
 # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
@@ -27,20 +29,31 @@ sensor = adafruit_tsl2591.TSL2591(i2c)
 # sensor.integration_time = adafruit_tsl2591.INTEGRATIONTIME_600MS (600ms)
 
 # Read the total lux, IR, and visible light levels and print it every second.
-while True:
-    # Read and calculate the light level in lux.
-    lux = sensor.lux
-    print("Total light: {0}lux".format(lux))
-    # You can also read the raw infrared and visible light levels.
-    # These are unsigned, the higher the number the more light of that type.
-    # There are no units like lux.
-    # Infrared levels range from 0-65535 (16-bit)
-    infrared = sensor.infrared
-    print("Infrared light: {0}".format(infrared))
-    # Visible-only levels range from 0-2147483647 (32-bit)
-    visible = sensor.visible
-    print("Visible light: {0}".format(visible))
-    # Full spectrum (visible + IR) also range from 0-2147483647 (32-bit)
-    full_spectrum = sensor.full_spectrum
-    print("Full spectrum (IR + visible) light: {0}".format(full_spectrum))
-    time.sleep(1.0)
+with open(OUTPUT_FILE, "w") as out:
+    out.write("time,Gesamthelligkeit,Infrarotlicht,Sichtbares Licht,Gesampspektrun\n")
+
+while True: 
+    try:
+        sl, si, sv, sf = sensor.lux, sensor.infrared, sensor.visible, sensor.full_spectrum
+
+    except:
+        print(f"Messfehler!")
+        continue
+
+    out_string = f"{time.strftime('%x %X')},{sl},{si},{sv},{sf}\n"
+
+    if max([sl, si, sv, sf]) > 100_000 or min([sl, si, sv, sf]) < 0:
+        print("Ungültiger sensor wert: ", out_string)
+        time.sleep(.5)
+        continue
+
+    print(out_string)
+
+    try:
+        with open(OUTPUT_FILE, "a") as out:
+            out.write(out_string)
+
+    except:
+        print("Fehler beim schreiben der Datei!")
+
+    time.sleep(1)
